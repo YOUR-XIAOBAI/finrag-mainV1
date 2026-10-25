@@ -1,0 +1,6 @@
+# Optional semantic retrieval + local text generation (large downloads).
+-r requirements.txt
+torch>=2.6,<3
+transformers>=4.48,<5
+sentence-transformers>=3.4,<6
+sentencepiece>=0.2,<1

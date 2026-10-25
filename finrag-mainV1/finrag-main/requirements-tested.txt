@@ -1,0 +1,10 @@
+# Tested direct dependencies on Python 3.12.10, Windows
+streamlit==1.58.0
+pypdf==6.21.2
+python-docx==1.2.0
+requests==2.34.2
+python-dotenv==1.2.4
+torch==2.14.1
+transformers==4.57.6
+sentence-transformers==5.7.0
+sentencepiece==0.2.2

@@ -1,0 +1,11 @@
+# Only the app, documentation and CI are intended for GitHub.
+*.zip
+github-ready/
+.env*
+!.env.example
+**/.streamlit/secrets.toml
+**/.venv*/
+**/__pycache__/
+**/logs/
+*.pem
+*.key
