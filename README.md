@@ -5,7 +5,7 @@
 
 应用代码：[finrag-mainV1/finrag-main](finrag-mainV1/finrag-main)。
 
-发布目标：GitHub **公开仓库**，在线回答先接入通义千问。真实 API 密钥仅在本地
+在线回答先接入通义千问。真实 API 密钥仅在本地
 环境变量或部署平台 Secrets 配置，公开源码不包含密钥。
 
 ## 在 Streamlit Community Cloud 部署
