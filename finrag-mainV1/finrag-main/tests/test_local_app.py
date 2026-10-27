@@ -26,9 +26,9 @@ class RetrievalTests(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertTrue(rag._retrieve(query, 1)[0].metadata["source"].endswith(filename))
         self.assertIn("September to March", rag.generate_response("看极光", k=1))
-        self.assertIn("未找到", rag.generate_response("quantum superconductivity"))
-        self.assertIn("未找到", rag.generate_response("日本签证怎么办"))
-        self.assertIn("请输入", rag.generate_response("  "))
+        self.assertIn("No relevant content found", rag.generate_response("quantum superconductivity"))
+        self.assertIn("No relevant content found", rag.generate_response("日本签证怎么办"))
+        self.assertIn("Please enter", rag.generate_response("  "))
         self.assertEqual(rag._retrieve("aurora", 0), [])
 
     def test_real_word_pdf_and_corrupt_file(self):
@@ -64,7 +64,7 @@ class RetrievalTests(unittest.TestCase):
 
     def test_chunking_and_empty_directory(self):
         with tempfile.TemporaryDirectory() as folder:
-            with self.assertRaisesRegex(ValueError, "没有读到"):
+            with self.assertRaisesRegex(ValueError, "No usable documents"):
                 load_and_process_documents(folder)
             (Path(folder) / "long.txt").write_text("Aurora Lapland\n" * 100, encoding="utf-8")
             chunks = load_and_process_documents(folder, chunk_size=100, chunk_overlap=20)
@@ -84,10 +84,12 @@ class AppTests(unittest.TestCase):
     def test_chat_and_rebuild(self):
         from streamlit.testing.v1 import AppTest
 
-        app = AppTest.from_file(str(BASE_DIR / "app.py")).run(timeout=20)
-        app.selectbox[0].select("本地资料检索").run(timeout=20)
+        app = AppTest.from_file(str(BASE_DIR / "app.py"))
+        app.secrets = {"TEST_MODE": True}
+        app.run(timeout=20)
+        app.selectbox[0].select("Document search").run(timeout=20)
         self.assertEqual(len(app.exception), 0)
-        self.assertEqual(app.metric[0].value, "4 个文件 / 4 个片段")
+        self.assertEqual(app.metric[0].value, "4 files")
         app.chat_input[0].set_value("芬兰什么时候看极光？").run(timeout=20)
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(len(app.chat_message), 2)

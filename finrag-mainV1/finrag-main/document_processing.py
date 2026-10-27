@@ -14,13 +14,13 @@ def load_and_process_documents(
     warnings: list[str] | None = None,
 ) -> list[Document]:
     if chunk_size <= 0 or not 0 <= chunk_overlap < chunk_size:
-        raise ValueError("chunk_size 必须大于 0，且 0 <= chunk_overlap < chunk_size")
+        raise ValueError("chunk_size must be greater than 0, with 0 <= chunk_overlap < chunk_size")
     loader = WindowsSafeDirectoryLoader(data_path or BASE_DIR / "data")
     raw_docs = loader.load()
     if warnings is not None:
         warnings.extend(loader.warnings)
     if not raw_docs:
-        raise ValueError("没有读到可用资料。请将 TXT、Markdown、PDF 或 DOCX 文件放入 data 目录。")
+        raise ValueError("No usable documents found. Add TXT, Markdown, PDF or DOCX files to the data folder.")
     chunks: list[Document] = []
     for doc in raw_docs:
         start = 0

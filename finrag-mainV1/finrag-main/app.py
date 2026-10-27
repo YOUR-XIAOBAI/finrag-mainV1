@@ -10,23 +10,23 @@ from custom_loader import SUPPORTED_SUFFIXES
 from document_processing import BASE_DIR
 from rag_pipeline import FinlandTravelRAG, ai_dependencies_available
 
-st.set_page_config(page_title="芬兰旅行资料助手", page_icon="🇫🇮", layout="centered")
-st.title("🇫🇮 芬兰旅行资料助手")
-st.caption("从你自己的旅行资料中查找内容，并显示来源。")
+st.set_page_config(page_title="Finland Travel Assistant", page_icon="🇫🇮", layout="centered")
+st.title("🇫🇮 Finland Travel Assistant")
+st.caption("Find answers in your travel documents, with sources you can check.")
 
 try:
     secret_values = dict(st.secrets)
 except st.errors.StreamlitSecretNotFoundError:
     secret_values = {}
 except Exception:
-    st.error("应用配置读取失败，请管理员检查 Secrets 的 TOML 格式。")
+    st.error("Unable to read the app configuration. Ask the administrator to check the Secrets TOML format.")
     st.stop()
 
 config = load_config(BASE_DIR, secret_values)
 try:
     api_settings = APISettings.from_mapping(config)
 except ModelAPIError as exc:
-    st.error(f"模型服务配置有误：{exc}")
+    st.error(f"Invalid model service configuration: {exc}")
     st.stop()
 
 access_password = config.get("APP_ACCESS_PASSWORD", "")
@@ -34,14 +34,14 @@ if access_password:
     password_signature = hashlib.sha256(access_password.encode("utf-8")).hexdigest()
     if st.session_state.get("access_granted") != password_signature:
         with st.form("access_form"):
-            entered = st.text_input("请输入访问口令", type="password")
-            submitted = st.form_submit_button("进入助手")
+            entered = st.text_input("Access password", type="password")
+            submitted = st.form_submit_button("Open assistant")
         if submitted:
             if hmac.compare_digest(entered.encode("utf-8"), access_password.encode("utf-8")):
                 st.session_state.access_granted = password_signature
                 st.rerun()
             else:
-                st.error("访问口令不正确。")
+                st.error("Incorrect access password.")
         st.stop()
 
 
@@ -54,51 +54,52 @@ def knowledge_signature() -> str:
     return digest.hexdigest()
 
 
-@st.cache_resource(show_spinner="正在读取资料…", max_entries=4)
+@st.cache_resource(show_spinner="Loading documents…", max_entries=4)
 def init_rag(mode: str, signature: str, settings: APISettings) -> FinlandTravelRAG:
     return FinlandTravelRAG(data_path=BASE_DIR / "data", mode=mode, api_settings=settings)
 
 
 with st.sidebar:
-    st.header("设置")
-    mode_labels = {"在线 AI 回答": "api", "本地资料检索": "offline"}
+    st.header("Settings")
+    mode_labels = {"Online AI answers": "api", "Document search": "offline"}
     if ai_dependencies_available():
-        mode_labels["本地 AI 回答"] = "ai"
+        mode_labels["Local AI answers"] = "ai"
     default_mode = config.get("APP_MODE", "api")
     default_index = next((i for i, value in enumerate(mode_labels.values()) if value == default_mode), 0)
-    selected_mode = st.selectbox("工作模式", list(mode_labels), index=default_index)
+    selected_mode = st.selectbox("Mode", list(mode_labels), index=default_index)
     mode = mode_labels[selected_mode]
     if mode == "offline":
-        st.info("当前直接展示相关原文。支持英文关键词和常见中文旅行词，不需要下载模型。")
+        st.info("Search returns relevant document excerpts. English keywords and common Chinese travel terms are supported. No model download is needed.")
     elif mode == "ai":
-        st.caption("使用本地多语言检索和中文模型。首次使用需要加载模型，CPU 回答可能需要一些时间。")
+        st.caption("Uses local multilingual search and a language model. Models load on first use; answers may take longer on a CPU.")
     else:
-        st.caption("先检索旅行资料，再由在线模型整理回答。")
+        st.caption("Search your travel documents, then let the online model compose an answer.")
         if api_settings.configured:
-            st.caption(f"回答模型：{api_settings.model}")
-    if st.button("🔄 重建知识库", use_container_width=True):
+            st.caption(f"Model: {api_settings.model}")
+    if st.button("🔄 Rebuild knowledge base", use_container_width=True):
         init_rag.clear()
         st.session_state.messages = []
-        st.success("已清除缓存，将重新读取资料。")
-    if st.button("清空对话", use_container_width=True):
+        st.success("Cache cleared. Reloading documents.")
+    if st.button("Clear conversation", use_container_width=True):
         st.session_state.messages = []
-    st.caption("添加 TXT / Markdown / PDF / DOCX 文件到 data 文件夹后，点击重建知识库。扫描 PDF 需要先做 OCR。")
+    st.caption("Add TXT, Markdown, PDF or DOCX files to the data folder, then click Rebuild knowledge base. Scanned PDFs need OCR first.")
 
 try:
     rag = init_rag(mode, knowledge_signature(), api_settings)
 except Exception as exc:
-    st.error(f"知识库加载失败：{exc}")
-    st.info(f"请检查资料目录：{BASE_DIR / 'data'}")
+    st.error(f"Unable to load the knowledge base: {exc}")
+    st.info(f"Check the documents folder: {BASE_DIR / 'data'}")
     st.stop()
 
 with st.sidebar:
-    st.metric("已加载资料", f"{rag.source_count} 个文件 / {len(rag.docs)} 个片段")
-    with st.expander("资料读取提示", expanded=bool(rag.warnings)):
+    st.metric("Loaded documents", f"{rag.source_count} files")
+    st.caption(f"{len(rag.docs)} searchable passages")
+    with st.expander("Document loading notes", expanded=bool(rag.warnings)):
         if rag.warnings:
             for warning in rag.warnings:
                 st.caption(warning)
         else:
-            st.caption("所有资料读取正常。")
+            st.caption("All documents loaded successfully.")
 
 if st.session_state.get("active_mode") != mode:
     st.session_state.messages = []
@@ -107,8 +108,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if not st.session_state.messages:
-    st.info("可以试试：芬兰什么时候看极光？ / 赫尔辛基有哪些景点？ / 夏天要带什么？")
-    st.caption("附带的资料是项目示例，可能不完整或不准确，请自行更新后用于旅行规划。")
+    st.info("Try asking: When can I see the northern lights? / What can I visit in Helsinki? / What should I pack for summer?")
+    st.caption("The included documents are project samples and may be incomplete or inaccurate. Update and verify them before planning a trip.")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -116,19 +117,19 @@ for message in st.session_state.messages:
 
 api_unavailable = mode == "api" and not api_settings.configured
 if api_unavailable:
-    st.warning("在线回答尚未启用。请联系应用管理员，或在侧栏切换到“本地资料检索”。")
+    st.warning('Online AI answers are not enabled yet. Contact the administrator or select "Document search" in the sidebar.')
 
-if user_input := st.chat_input("输入问题，例如：赫尔辛基的交通", max_chars=1500, disabled=api_unavailable):
+if user_input := st.chat_input("Ask a question, e.g. How do I get around Helsinki?", max_chars=1500, disabled=api_unavailable):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
     with st.chat_message("assistant"):
         try:
-            status_text = {"offline": "正在查找资料…", "api": "正在根据资料生成回答…", "ai": "正在加载本地模型并生成回答…"}
+            status_text = {"offline": "Searching documents…", "api": "Preparing an answer from your documents…", "ai": "Loading the local model and preparing an answer…"}
             with st.spinner(status_text[mode]):
                 answer = st.write_stream(rag.stream_response(user_input))
         except Exception as exc:
-            detail = str(exc) if isinstance(exc, ModelAPIError) or mode != "api" else "模型服务暂时不可用，请稍后重试。"
-            answer = f"回答失败：{detail}\n\n可切换到“本地资料检索”继续使用。"
+            detail = str(exc) if isinstance(exc, ModelAPIError) or mode != "api" else "The model service is temporarily unavailable. Please try again later."
+            answer = f'Unable to answer: {detail}\n\nYou can switch to "Document search" to continue.'
             st.error(answer)
     st.session_state.messages.append({"role": "assistant", "content": answer})

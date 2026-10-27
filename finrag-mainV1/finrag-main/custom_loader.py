@@ -20,20 +20,20 @@ class WindowsSafeDirectoryLoader:
     def __init__(self, root_dir: str | Path, max_workers: int = 8) -> None:
         self.root_dir = Path(root_dir).resolve()
         if not self.root_dir.is_dir():
-            raise FileNotFoundError(f"资料目录不存在：{self.root_dir}")
+            raise FileNotFoundError(f"Documents folder does not exist: {self.root_dir}")
         self.warnings: list[str] = []
 
     @staticmethod
     def _read_text(path: Path) -> str:
         raw = path.read_bytes()
         if b"\x00" in raw:
-            raise ValueError("文件为二进制数据，无法作为文本读取")
+            raise ValueError("The file contains binary data and cannot be read as text")
         for encoding in ("utf-8-sig", "gb18030", "cp1252"):
             try:
                 return raw.decode(encoding)
             except UnicodeDecodeError:
                 continue
-        raise ValueError("无法识别文本编码，请转换为 UTF-8")
+        raise ValueError("Unrecognized text encoding. Please convert the file to UTF-8")
 
     def _load_single(self, path: Path) -> list[Document]:
         source = path.relative_to(self.root_dir).as_posix()
@@ -44,7 +44,7 @@ class WindowsSafeDirectoryLoader:
             docs = [Document(page.extract_text() or "", {"source": source, "page": i + 1})
                     for i, page in enumerate(PdfReader(str(path)).pages)]
             if not any(doc.page_content.strip() for doc in docs):
-                raise ValueError("PDF 没有可提取文字，扫描件需要先进行 OCR")
+                raise ValueError("The PDF has no extractable text. Scanned documents need OCR first")
             return docs
         if suffix == ".docx" and zipfile.is_zipfile(path):
             from docx import Document as WordDocument
@@ -57,9 +57,9 @@ class WindowsSafeDirectoryLoader:
         else:
             text = self._read_text(path)
             if suffix in {".pdf", ".docx"}:
-                self.warnings.append(f"{source} 实际为纯文本，已兼容读取。")
+                self.warnings.append(f"{source} contains plain text despite its extension. Loaded as text.")
         if not text.strip():
-            raise ValueError("文件内容为空")
+            raise ValueError("The file is empty")
         return [Document(text.strip(), {"source": source})]
 
     def load(self) -> list[Document]:
@@ -73,7 +73,7 @@ class WindowsSafeDirectoryLoader:
             try:
                 docs.extend(self._load_single(path))
             except Exception as exc:
-                message = f"读取 {path.name} 失败：{exc}"
+                message = f"Unable to read {path.name}: {exc}"
                 self.warnings.append(message)
                 logger.warning(message)
         return docs

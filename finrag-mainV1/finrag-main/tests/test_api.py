@@ -78,7 +78,7 @@ class APITests(unittest.TestCase):
 
     def test_no_relevant_documents_means_no_paid_api_call(self):
         rag = FinlandTravelRAG(mode="api", api_settings=self.settings)
-        self.assertIn("未找到", rag.generate_response("quantum superconductivity"))
+        self.assertIn("No relevant content found", rag.generate_response("quantum superconductivity"))
         self.assertEqual(self.server.requests, [])
 
     def test_status_errors_are_safe_and_do_not_retry(self):
@@ -108,9 +108,12 @@ class APITests(unittest.TestCase):
         with patch.dict(os.environ, {"APP_MODE": "api", "APP_ACCESS_PASSWORD": "", "LLM_PROVIDER": "custom",
                                     "LLM_BASE_URL": self.settings.base_url, "LLM_MODEL": "test-model",
                                     "LLM_API_KEY": "unit-test-key"}):
-            app = AppTest.from_file(str(BASE_DIR / "app.py")).run(timeout=20)
+            app = AppTest.from_file(str(BASE_DIR / "app.py"))
+            # A nonempty test secret prevents AppTest from reading real deployment credentials.
+            app.secrets = {"TEST_MODE": True}
+            app.run(timeout=20)
             self.assertEqual(len(app.exception), 0)
-            self.assertEqual(app.selectbox[0].value, "在线 AI 回答")
+            self.assertEqual(app.selectbox[0].value, "Online AI answers")
             app.chat_input[0].set_value("芬兰什么时候看极光？").run(timeout=20)
             self.assertEqual(len(app.exception), 0)
             self.assertEqual(len(app.error), 0)
@@ -125,11 +128,13 @@ class ConfigurationTests(unittest.TestCase):
         with patch.dict(os.environ, {"APP_MODE": "api", "APP_ACCESS_PASSWORD": "", "LLM_API_KEY": "",
                                     "DASHSCOPE_API_KEY": "", "LLM_PROVIDER": "qwen",
                                     "LLM_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1"}):
-            app = AppTest.from_file(str(BASE_DIR / "app.py")).run(timeout=20)
+            app = AppTest.from_file(str(BASE_DIR / "app.py"))
+            app.secrets = {"TEST_MODE": True}
+            app.run(timeout=20)
             self.assertEqual(len(app.exception), 0)
             self.assertTrue(app.chat_input[0].disabled)
-            self.assertTrue(any("尚未启用" in warning.value for warning in app.warning))
-            app.selectbox[0].select("本地资料检索").run(timeout=20)
+            self.assertTrue(any("not enabled yet" in warning.value for warning in app.warning))
+            app.selectbox[0].select("Document search").run(timeout=20)
             self.assertFalse(app.chat_input[0].disabled)
 
     def test_provider_defaults_and_safe_repr(self):
@@ -159,18 +164,20 @@ class ConfigurationTests(unittest.TestCase):
             with self.subTest(values=values):
                 with self.assertRaises(ModelAPIError):
                     APISettings.from_mapping(values)
-        with self.assertRaisesRegex(ModelAPIError, "密钥"):
+        with self.assertRaisesRegex(ModelAPIError, "API key"):
             list(stream_chat(APISettings(), "question", "context"))
 
     def test_optional_access_password(self):
         from streamlit.testing.v1 import AppTest
 
         with patch.dict(os.environ, {"APP_ACCESS_PASSWORD": "test-only-password", "APP_MODE": "offline"}):
-            app = AppTest.from_file(str(BASE_DIR / "app.py")).run(timeout=20)
+            app = AppTest.from_file(str(BASE_DIR / "app.py"))
+            app.secrets = {"TEST_MODE": True}
+            app.run(timeout=20)
             self.assertEqual(len(app.chat_input), 0)
             app.text_input[0].set_value("wrong")
             app.button[0].click().run(timeout=20)
-            self.assertIn("口令不正确", app.error[0].value)
+            self.assertIn("Incorrect access password", app.error[0].value)
             app.text_input[0].set_value("test-only-password")
             app.button[0].click().run(timeout=20)
             self.assertEqual(len(app.exception), 0)
