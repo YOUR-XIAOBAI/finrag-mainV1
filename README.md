@@ -1,3 +1,5 @@
+[🌐 Open Finland Travel Assistant](https://finrag-mainv1-eixvbuh8wopeg3s7yqtqdw.streamlit.app/)
+
 # FinRAG 芬兰旅行资料助手
 
 基于 Streamlit 的旅行资料问答应用：本地检索资料，再调用模型 API 生成回答并显示来源。
